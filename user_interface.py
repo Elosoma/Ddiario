@@ -3,8 +3,10 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QStackedLayout, QPushButton, QLabel, QLineEdit, QFormLayout, QHBoxLayout, QListWidget, QMessageBox, QComboBox
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QIcon
 from database_manager import DatabaseManager, Routine
+
+
 
 class WelcomeScreen(QWidget):
     def __init__(self, switch_screen):
@@ -21,20 +23,22 @@ class WelcomeScreen(QWidget):
 
         self.setLayout(layout)
 
+
+
 class LoginScreen(QWidget):
     def __init__(self, switch_screen, db, set_current_user):
         super().__init__()
         self.db = db
         self.set_current_user = set_current_user
         self.switch_screen = switch_screen
-        self.current_user = None
+    
         layout = QFormLayout()
 
-        self.username_input = QLineEdit()
+        self.mail_input = QLineEdit()
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
 
-        layout.addRow("Usuario:", self.username_input)
+        layout.addRow("Correo:", self.mail_input)
         layout.addRow("Contraseña:", self.password_input)
 
         login_button = QPushButton("Iniciar sesión")
@@ -48,31 +52,41 @@ class LoginScreen(QWidget):
         self.setLayout(layout)
 
     def handle_login(self):
-        username = self.username_input.text()
+        '''Gestiona el inicio de sesión y comprueba los datos con la db'''
+
+        mail = self.mail_input.text()
         password = self.password_input.text()
-        user = self.db.get_user(username)
+
+        user = self.db.get_user(mail)
         if user:
             if user.password == password:
                 self.set_current_user(user)
                 self.switch_screen(3)
             else:
-                QMessageBox.warning(self, "Error", "Contraseña incorrecta")
+                QMessageBox.warning(self, "Datos Incorrectos", "Revise que los datos introducidos sean correctos.")
         else:
-            QMessageBox.warning(self, "Error", "Mail incorrecto")
+            QMessageBox.warning(self, "Datos incorrectos", "Correo no vinculado a una cuenta existente.")
+
+
 
 class RegisterScreen(QWidget):
-    def __init__(self, switch_screen, db):
+    def __init__(self, switch_screen, db, set_current_user):
         super().__init__()
         self.db = db
         self.switch_screen = switch_screen
+        self.set_current_user = set_current_user
+
         layout = QFormLayout()
 
+
+        self.mail_input = QLineEdit()
         self.username_input = QLineEdit()
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
         self.confirm_password_input = QLineEdit()
         self.confirm_password_input.setEchoMode(QLineEdit.Password)
 
+        layout.addRow("Correo:", self.mail_input)
         layout.addRow("Usuario:", self.username_input)
         layout.addRow("Contraseña:", self.password_input)
         layout.addRow("Confirmar Contraseña:", self.confirm_password_input)
@@ -84,32 +98,49 @@ class RegisterScreen(QWidget):
         self.setLayout(layout)
 
     def handle_register(self):
+        '''Gestiona la creación de nuevos usuarios'''
+
+        mail = self.mail_input.text()
         username = self.username_input.text()
         password = self.password_input.text()
         confirm_password = self.confirm_password_input.text()
 
-        if not username or not password or not confirm_password:
+        if not mail or not username or not password or not confirm_password:
             QMessageBox.warning(self, "Error", "Todos los campos son obligatorios")
             return
 
         if password != confirm_password:
             QMessageBox.warning(self, "Error", "Las contraseñas no coinciden")
             return
+        
+        if self.db.get_user(mail):
+            QMessageBox.warning(self, "Error", "El siguiente correo ya se encuentra registrado")
+            return
 
         try:
-            self.db.add_user(username, password)
+            self.db.add_user(username, mail, password)
             QMessageBox.information(self, "Éxito", "Usuario registrado correctamente")
-            self.switch_screen(1)
+            user = self.db.get_user(mail)
+            self.set_current_user(user)
+            self.switch_screen(3)
         except Exception as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+
+
 
 class MainScreen(QWidget):
     def __init__(self, switch_screen, db, get_current_user):
         super().__init__()
         self.db = db
         self.get_current_user = get_current_user
+        self.current_user = get_current_user()
         self.switch_screen = switch_screen
+
         self.layout = QVBoxLayout()
+
+        self.wellcoming = QLabel(f"Bienvendio {self.get_current_user()['username']}")
+        self.layout.addWidget(self.wellcoming)
 
         self.label = QLabel("Rutinas próximas")
         self.layout.addWidget(self.label)
@@ -119,7 +150,9 @@ class MainScreen(QWidget):
 
         self.update_routines()
 
-        create_button = QPushButton("Crear rutina")
+        create_button = QPushButton("")
+        create_button.setIcon(QIcon("res\\plus.png"))
+        create_button.adjustSize()
         create_button.clicked.connect(lambda: switch_screen(4))
         self.layout.addWidget(create_button)
 
@@ -130,11 +163,17 @@ class MainScreen(QWidget):
         self.setLayout(self.layout)
 
     def update_routines(self):
+        '''Actualiza las rutinas y otras variables que dependen del usuario activo'''
+
         self.routine_list.clear()
-        current_user = self.get_current_user()
-        routines = self.db.get_user_routines(current_user['id']) if current_user['id'] else []
+        self.current_user = self.get_current_user()
+        self.wellcoming.setText(f'Bienvendio/a {self.current_user["username"]}')
+
+        routines = self.db.get_user_routines(int(current_user['id'])) if current_user['id'] else []
         for routine in routines:
             self.routine_list.addItem(f"{routine.name} - {routine.date}")
+
+
 
 class CreateRoutineScreen(QWidget):
     def __init__(self, switch_screen, db, get_current_user):
@@ -183,6 +222,8 @@ class CreateRoutineScreen(QWidget):
         QMessageBox.information(self, "Éxito", "Rutina guardada correctamente")
         self.switch_screen(3)
 
+
+
 class EditRoutineScreen(QWidget):
     def __init__(self, switch_screen, db, get_current_user):
         super().__init__()
@@ -230,6 +271,8 @@ class EditRoutineScreen(QWidget):
                     self.update_routines()
                     return
 
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
@@ -242,6 +285,7 @@ if __name__ == "__main__":
     def set_current_user(user):
         current_user['id'] = user.id
         current_user['username'] = user.username
+        print (current_user)
 
     main_window = QWidget()
     main_window.setGeometry(100, 100, 350, 600)
@@ -254,11 +298,20 @@ if __name__ == "__main__":
     screens = {
         0: WelcomeScreen(lambda i: layout.setCurrentIndex(i)),
         1: LoginScreen(lambda i: layout.setCurrentIndex(i), db, set_current_user),
-        2: RegisterScreen(lambda i: layout.setCurrentIndex(i), db),
+        2: RegisterScreen(lambda i: layout.setCurrentIndex(i), db, set_current_user),
         3: MainScreen(lambda i: layout.setCurrentIndex(i), db, get_current_user),
         4: CreateRoutineScreen(lambda i: layout.setCurrentIndex(i), db, get_current_user),
         5: EditRoutineScreen(lambda i: layout.setCurrentIndex(i), db, get_current_user),
     }
+
+    def on_tab_changed(index):
+        if index == 3:  # Pantalla principal
+            screens[3].update_routines()
+        elif index == 5:  # Pantalla de edición
+            screens[5].update_routines()
+
+    # Conectar la señal currentChanged
+    layout.currentChanged.connect(on_tab_changed)
 
     for i, screen in screens.items():
         layout.addWidget(screen)

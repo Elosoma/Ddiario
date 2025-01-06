@@ -50,7 +50,7 @@ class DatabaseManager:
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
+                username TEXT NOT NULL,
                 mail TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL
             )
@@ -113,7 +113,7 @@ class DatabaseManager:
         # Inicia el cursor con la conexión a la db
         cursor = self.connection.cursor()
         # Select * (all) de rutinas
-        cursor.execute('''SELECT * FROM routines WHERE user_id = ?''', (user_id))
+        cursor.execute('''SELECT * FROM routines WHERE user_id = ?''', (int(user_id),))
 
         # Convierte el resultado de la consulta en una lista y la devuelve
         rows = cursor.fetchall()
@@ -153,12 +153,13 @@ class DatabaseManager:
     -------------------
     '''
 
-    def add_user(self, user=User):
+    def add_user(self, username, mail, password):
         '''Registra un usuario en la db'''
 
         # Inicia el cursor con la conexión a la db
         cursor = self.connection.cursor()
         # Coamndo SQL Insert into Users
+        user = User(username, mail, password)
         cursor.execute('''
             INSERT INTO users (username, mail, password) 
             VALUES (?, ?, ?)
@@ -228,6 +229,18 @@ class DatabaseManager:
         '''Cierra conexión con la db'''
         self.connection.close()
 
+    def delete_all(self):
+        '''Borra todos los datos de la db'''
+
+        # Inicia el cursor con la conexión a la db
+        cursor = self.connection.cursor()
+        # Ejecuta el comando SQL Update en el usuario solicitado
+        cursor.execute('''DROP TABLE IF EXISTS routines''')
+        cursor.execute('''DROP TABLE IF EXISTS users''')
+
+        # Commit
+        self.connection.commit() 
+
 
 
 
@@ -236,28 +249,33 @@ class DatabaseManager:
 if __name__ == "__main__":
     db = DatabaseManager()
 
-    '''user = User("healtyrunner","sportman@gmail.com","runsofaraway")
-    db.add_user(user)
-    user = User("businessman","criptofounder@hotmail.io","memillonaire")
-    db.add_user(user)
-    user = User("alumno","alumno@gmail.com","alumno")
-    db.add_user(user)
+    control = 0
+    display = 1
 
-    routine = Routine(1,"TFG","Defender el proyecto de fin de grado","2025-01-15 14:00",False)
-    db.add_routine(routine)
-    routine = Routine(1,"Clase de piano","","Lunes-Martes 17:30-19:00",True)
-    db.add_routine(routine)
-    routine = Routine(2,"Salir a correr","Recorrer las afueras del poligono","2025-01-17 08:15-10:30",False)
-    db.add_routine(routine)'''
-    
-    users = db.get_all_users()
-    routines = db.get_all_routines()
-    for u in users:
-        print (f'{u.id} - {u.mail} - {u.username} - {u.password}')
-        for r in routines:
-            if r.user == u.id:
-                print (f'{r.id} - {r.name} - {r.description} - {r.date} - {r.is_recurring}')
+    if control == 1:
+        db.add_user("Jose","jose@gmail.com","jose")
+        db.add_user("Luis","luis@gmail.com","luis")
+        db.add_user("Alumno","alumno@gmail.com","alumno")
 
-        print ("\n\n\n")
+        routine = Routine(1,"TFG","Defender el proyecto de fin de grado","2025-01-15 14:00",False)
+        db.add_routine(routine)
+        routine = Routine(1,"Clase de piano","","Lunes-Martes 17:30-19:00",True)
+        db.add_routine(routine)
+        routine = Routine(2,"Salir a correr","Recorrer las afueras del poligono","2025-01-17 08:15-10:30",False)
+        db.add_routine(routine)
+
+    if control == 2:
+        db.delete_all()
+
+    if display == 1:
+        users = db.get_all_users()
+        routines = db.get_all_routines()
+        for u in users:
+            print (f'{u.id} - {u.mail} - {u.username} - {u.password}')
+            for r in routines:
+                if r.user == u.id:
+                    print (f'{r.id} - {r.name} - {r.description} - {r.date} - {r.is_recurring}')
+
+            print ("\n\n\n")
 
     db.close()
