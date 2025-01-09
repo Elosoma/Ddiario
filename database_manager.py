@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 
 
@@ -116,8 +117,13 @@ class DatabaseManager:
         cursor.execute('''SELECT * FROM routines WHERE user_id = ?''', (int(user_id),))
 
         # Convierte el resultado de la consulta en una lista y la devuelve
+        routines = []
         rows = cursor.fetchall()
-        return [Routine(row[1], row[2], row[3], row[4], bool(row[5]), row[0]) for row in rows]
+        for row in rows:
+            row_date = row[4]
+            routine_date = datetime.strptime(row_date, "%Y-%m-%d %H:%M") 
+            routines.append(Routine(row[1], row[2], row[3], routine_date, row[5], row[0]))
+        return routines
 
     def delete_routine(self, routine_id):
         '''Borra una rutina mediante su id'''
@@ -249,14 +255,15 @@ class DatabaseManager:
 if __name__ == "__main__":
     db = DatabaseManager()
 
-    control = 0
+    control = 4
     display = 1
 
     if control == 1:
-        db.add_user("Jose","jose@gmail.com","jose")
-        db.add_user("Luis","luis@gmail.com","luis")
-        db.add_user("Alumno","alumno@gmail.com","alumno")
+        db.add_user("Alumno","a@gmail.com","a")
+        db.add_user("Eloy","eloy@gmail.com","eloy")
+        db.add_user("Vacio","vacio@gmail.com","vacio")
 
+    if control == 3:
         routine = Routine(1,"TFG","Defender el proyecto de fin de grado","2025-01-15 14:00",False)
         db.add_routine(routine)
         routine = Routine(1,"Clase de piano","","Lunes-Martes 17:30-19:00",True)
@@ -266,6 +273,9 @@ if __name__ == "__main__":
 
     if control == 2:
         db.delete_all()
+    
+    if control == 4:
+        db.delete_routine(3)
 
     if display == 1:
         users = db.get_all_users()
