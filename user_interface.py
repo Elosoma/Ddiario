@@ -363,7 +363,7 @@ class CreateRoutineScreen(QWidget):
             routine = Routine(current_user['id'], name, description, f'{format_date_limit}', is_recurring)
 
         # Crea la rutina y la añade al usuario con la sesión actual
-        print (f"{current_user['id']}, {name}, {description}, {formatted_date}, {is_recurring}")
+        #print (f"{current_user['id']}, {name}, {description}, {formatted_date}, {is_recurring}")
         self.db.add_routine(routine)
 
         # Informa y regresa a la pestaña principal
@@ -389,12 +389,6 @@ class EditRoutineScreen(QWidget):
         self.routine_list = QListWidget()
         self.layout.addWidget(self.routine_list)
 
-        self.label2 = QLabel("Lista de notas")
-        self.layout.addWidget(self.label2)
-
-        self.note_list = QListWidget()
-        self.layout.addWidget(self.note_list)
-
         self.update_routines()
 
         delete_button = QPushButton("Eliminar rutina")
@@ -409,14 +403,13 @@ class EditRoutineScreen(QWidget):
 
     def update_routines(self):
         self.routine_list.clear()
-        self.note_list.clear()
         current_user = self.get_current_user()
         routines = self.db.get_user_routines(current_user['id']) if current_user['id'] else []
         for routine in routines:
             if routine.is_recurring:
                 self.routine_list.addItem(f"{routine.name} - {routine.date}")
             else:
-                self.note_list.addItem(f"{routine.name}")
+                self.routine_list.addItem(f"{routine.name}")
 
     def delete_routine(self):
         selected_item = self.routine_list.currentItem()
