@@ -186,12 +186,23 @@ class DatabaseManager:
         rows = cursor.fetchall()
         return [User(row[1], row[2], row[3], row[0]) for row in rows]
     
-    def get_user(self, user_mail):
+    def get_user(self, id):
         '''Devuelve los datos del usuario solicitado por mail'''
 
         # Recorre la lista de usuarios en busqueda del mail
         for u in self.get_all_users():
-            if u.mail == user_mail:
+            if u.id == id:
+                return u
+        
+        # Si no lo encuentra devuelve None
+        return None
+    
+    def get_user_mail(self, mail):
+        '''Devuelve los datos del usuario solicitado por mail'''
+
+        # Recorre la lista de usuarios en busqueda del mail
+        for u in self.get_all_users():
+            if u.mail == mail:
                 return u
         
         # Si no lo encuentra devuelve None
@@ -255,7 +266,7 @@ class DatabaseManager:
 if __name__ == "__main__":
     db = DatabaseManager()
 
-    control = 4
+    control = 3
     display = 1
 
     if control == 1:
@@ -264,18 +275,18 @@ if __name__ == "__main__":
         db.add_user("Vacio","vacio@gmail.com","vacio")
 
     if control == 3:
-        routine = Routine(1,"TFG","Defender el proyecto de fin de grado","2025-01-15 14:00",False)
+        routine = Routine(1,"TFG","Defender el proyecto de fin de grado","2025-01-14 14:00",True)
         db.add_routine(routine)
-        routine = Routine(1,"Clase de piano","","Lunes-Martes 17:30-19:00",True)
+        routine = Routine(1,"Tomar un helado","Quedar con Alex para tomar un helado","2025-01-14 17:00",True)
         db.add_routine(routine)
-        routine = Routine(2,"Salir a correr","Recorrer las afueras del poligono","2025-01-17 08:15-10:30",False)
+        routine = Routine(1,"Comprar regalo","Preparar un regalo para el día de la madre","2300-01-17 08:15",False)
         db.add_routine(routine)
 
     if control == 2:
         db.delete_all()
     
     if control == 4:
-        db.delete_routine(3)
+        db.delete_routine(5)
 
     if display == 1:
         users = db.get_all_users()

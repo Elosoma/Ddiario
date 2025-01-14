@@ -71,7 +71,7 @@ class LoginScreen(QWidget):
 
         # Comprueba los diferentes datos
         if is_mail(mail):
-            user = self.db.get_user(mail)
+            user = self.db.get_user_mail(mail)
             if user:
                 if user.password == password:
                     # Cambiamos el usuario actual y redirige a las pestaña principal
@@ -185,6 +185,14 @@ class MainScreen(QWidget):
         # Lista con las rutinas del usuario
         self.routine_list = QListWidget()
         self.layout.addWidget(self.routine_list)
+
+        # Label informativo
+        self.label2 = QLabel("Notas:")
+        self.layout.addWidget(self.label2)
+
+        # Lista con las rutinas del usuario
+        self.note_list = QListWidget()
+        self.layout.addWidget(self.note_list)
         self.update_routines()
 
         # Menú de navegación
@@ -215,13 +223,12 @@ class MainScreen(QWidget):
         layout.addWidget(porfile_btn)
         return widget
 
-    
-
     def update_routines(self):
         '''Actualiza las rutinas y otras variables que dependen del usuario activo'''
 
         # Limpia la lista y actualiza el mensaje de bienvenida
         self.routine_list.clear()
+        self.note_list.clear()
         self.current_user = self.get_current_user()
         self.wellcoming.setText(f'Bienvenido/a {self.current_user["username"]}')
 
@@ -233,10 +240,18 @@ class MainScreen(QWidget):
         routines.sort(key=lambda r: abs((r.date - today).days))
 
         for routine in routines:
-            lbl = QLabel()
-            lbl.setStyleSheet("border: 2px solid #190f2a; background-color: white;")
-            self.routine_list.addItem(f"{routine.name}\n{routine.date}\n{routine.description}\n")
-
+            # Comprueba que la feha no sea pasada:
+            current_date = datetime.now()
+            formatted_date = routine.date.strftime("%Y-%m-%d %H:%M")
+            r_date = datetime.strptime(formatted_date, "%Y-%m-%d %H:%M") 
+            if r_date <= current_date:
+                QMessageBox.information(self, "Rutina eliminada", f"La siguiente rutina a expirado.\n{routine.name}")
+                self.db.delete_routine(routine.id)
+            else:
+                if routine.is_recurring:
+                    self.routine_list.addItem(f"{routine.name}\n{formatted_date}\n{routine.description}\n")
+                else:
+                    self.note_list.addItem(f"{routine.name}\n{routine.description}\n")
 
 '''
 ------------------------------------------------------------------------------------------
@@ -255,18 +270,28 @@ class CreateRoutineScreen(QWidget):
         self.name_input = QLineEdit()
         self.description_input = QLineEdit()
         self.date_input = QDateEdit()
+        self.recurring_selector = QComboBox()
+        self.recurring_selector.addItems(["Nota", "Recordatorio"])
+        self.recurring_selector.currentIndexChanged.connect(self.on_recurrence_changed)
+
+        self.date_lbl = QLabel("Fecha")
+        self.date_lbl.hide()
         self.date_input.setCalendarPopup(True)
         self.date_input.setMinimumDate(QDate.currentDate())
-        self.time_input = QTimeEdit()
-        self.recurring_selector = QComboBox()
-        self.recurring_selector.addItems(["Única vez", "Diaria", "Semanal", "Mensual"])
+        self.date_input.hide()
 
+        self.time_lbl = QLabel("Hora")
+        self.time_lbl.hide()
+        self.time_input = QTimeEdit()
+        self.time_input.hide()
+        
         # Filas con los nombres de los campos
         self.layout.addRow("Nombre:", self.name_input)
         self.layout.addRow("Descripción:", self.description_input)
-        self.layout.addRow("Fecha:", self.date_input)
-        self.layout.addRow("Hora:", self.time_input)
         self.layout.addRow("Repetir:", self.recurring_selector)
+        self.layout.addRow(self.date_lbl, self.date_input)
+        self.layout.addRow(self.time_lbl, self.time_input)
+        
 
         # Botón para guardar rutina
         save_button = QPushButton("Volver")
@@ -277,6 +302,18 @@ class CreateRoutineScreen(QWidget):
         save_button = QPushButton("Guardar rutina")
         save_button.clicked.connect(self.handle_save)
         self.layout.addWidget(save_button)
+
+    def on_recurrence_changed(self):
+        if self.recurring_selector.currentIndex() == 1:
+            self.date_input.show()
+            self.date_lbl.show()
+            self.time_input.show()
+            self.time_lbl.show()
+        else:
+            self.date_input.hide()
+            self.date_lbl.hide()
+            self.time_input.hide()
+            self.time_lbl.hide()
     
     def update(self):
         '''Actualiza los campos cada vez que se accede a la pestaña'''
@@ -295,21 +332,7 @@ class CreateRoutineScreen(QWidget):
         time = self.time_input.time().toPyTime()
         date_time = datetime.combine(date, time)
         formatted_date = date_time.strftime("%Y-%m-%d %H:%M")  # Sin microsegundos
-        is_recurring = self.recurring_selector.currentIndex() > 0
-
-        # Comprueba los campos obligatorios
-        if not name:
-            QMessageBox.warning(self, "Error", "El nombre es un campo obligatorio")
-            return
-        if not date or not time:
-            QMessageBox.warning(self, "Error", "La fecha es un campo obligatorio")
-            return
-        
-        # Comprueba que la feha no sea pasada:
-        current_date = datetime.now()
-        if date_time <= current_date:
-            QMessageBox.warning(self, "Fecha/Hora Inválida", "Selecciona una fecha y hora futuras.")
-            return
+        is_recurring = self.recurring_selector.currentIndex() == 1
 
         # Comprueba que exista una sesión
         current_user = self.get_current_user()
@@ -317,9 +340,30 @@ class CreateRoutineScreen(QWidget):
             QMessageBox.warning(self, "Error", "No hay usuario autenticado")
             return
 
+        # Comprueba los campos obligatorios
+        if not name:
+            QMessageBox.warning(self, "Error", "El nombre es un campo obligatorio")
+            return
+        
+        if is_recurring:
+            if not date or not time:
+                QMessageBox.warning(self, "Error", "La fecha es un campo obligatorio")
+                return
+            
+            # Comprueba que la feha no sea pasada:
+            current_date = datetime.now()
+            if date_time <= current_date:
+                QMessageBox.warning(self, "Fecha/Hora Inválida", "Selecciona una fecha y hora futuras.")
+                return
+
+            routine = Routine(current_user['id'], name, description, formatted_date, is_recurring)
+        else:
+            date_limit = datetime(2300, 1, 1, 1, 1)
+            format_date_limit = date_limit.strftime("%Y-%m-%d %H:%M")
+            routine = Routine(current_user['id'], name, description, f'{format_date_limit}', is_recurring)
+
         # Crea la rutina y la añade al usuario con la sesión actual
         print (f"{current_user['id']}, {name}, {description}, {formatted_date}, {is_recurring}")
-        routine = Routine(current_user['id'], name, description, formatted_date, is_recurring)
         self.db.add_routine(routine)
 
         # Informa y regresa a la pestaña principal
@@ -345,6 +389,12 @@ class EditRoutineScreen(QWidget):
         self.routine_list = QListWidget()
         self.layout.addWidget(self.routine_list)
 
+        self.label2 = QLabel("Lista de notas")
+        self.layout.addWidget(self.label2)
+
+        self.note_list = QListWidget()
+        self.layout.addWidget(self.note_list)
+
         self.update_routines()
 
         delete_button = QPushButton("Eliminar rutina")
@@ -359,10 +409,14 @@ class EditRoutineScreen(QWidget):
 
     def update_routines(self):
         self.routine_list.clear()
+        self.note_list.clear()
         current_user = self.get_current_user()
         routines = self.db.get_user_routines(current_user['id']) if current_user['id'] else []
         for routine in routines:
-            self.routine_list.addItem(f"{routine.name} - {routine.date}")
+            if routine.is_recurring:
+                self.routine_list.addItem(f"{routine.name} - {routine.date}")
+            else:
+                self.note_list.addItem(f"{routine.name}")
 
     def delete_routine(self):
         selected_item = self.routine_list.currentItem()
@@ -410,7 +464,7 @@ class PorfileScreen (QWidget):
         '''Actualiza la información con la del usuario activo'''
         current_user = self.get_current_user()
         routines = self.db.get_user_routines(current_user['id']) if current_user['id'] else []
-        self.lbl_info.setText(f"Usuario: {current_user['username']}\n\nNº de rutinas: {len(routines)}")
+        self.lbl_info.setText(f"Usuario: {current_user['username']}\nCorreo: {self.db.get_user(current_user['id']).mail}\n\nNº de rutinas: {len(routines)}")
 
     def user_info(self):
         '''Centra la imagen y la re escala'''
@@ -442,7 +496,7 @@ class PorfileScreen (QWidget):
 
     def handle_log_out(self):
         '''Borra la sesión y regresa al inicio'''
-        with open("user.json", "w", encoding='utf-8') as file:
+        with open("res\\user.json", "w", encoding='utf-8') as file:
             file.write(f'{json.dumps({"id": "None", "username": "None"})}')
         self.switch_screen(0)    
 
@@ -462,7 +516,7 @@ def run():
     app = QApplication(sys.argv)
     db = DatabaseManager()
 
-    with open("user.json", "r", encoding='utf-8') as file:
+    with open("res\\user.json", "r", encoding='utf-8') as file:
         user = json.load(file)
     current_user = {
         'id': None if user["id"] == 'None' else user["id"],
@@ -477,7 +531,7 @@ def run():
         '''Cambia el usuario actual'''
         current_user['id'] = user.id
         current_user['username'] = user.username
-        with open("user.json", "w", encoding='utf-8') as file:
+        with open("res\\user.json", "w", encoding='utf-8') as file:
             file.write(f'{json.dumps(current_user)}')
 
     # Widget principal y sus propiedades
