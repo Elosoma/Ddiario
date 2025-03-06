@@ -10,7 +10,9 @@
     font-weight: bold;
 
     padding: 10;
-    border-radius: 15px;
+    border-radius: 5px;
 }
 
 .QPushButton:hover{background-color: #c8c8c8;}
+
+#x{background-color: #190f2a;}
