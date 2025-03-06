@@ -1,18 +1,18 @@
 *{
-    background-color : #190f2a; 
+    background-color : #190f2a;
+    font-size: 16px;
     color : white;
-    
 }
 
 .QPushButton{
     background-color: white;
     color: #190f2a;
-
-    font-size: 14px;
     font-weight: bold;
 
-    padding: 15;
-    padding-left: 25;
-    padding-right: 25;
-    border-radius: 15px;
+    padding: 10;
+    border-radius: 5px;
 }
+
+.QPushButton:hover{background-color: #c8c8c8;}
+
+#x{background-color: #190f2a;}
